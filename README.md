@@ -4,7 +4,7 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 	libwayland-dev
 	libobs-dev
 ## Building
-	hg clone https://bitbucket.org/Scoopta/wlrobs
+	hg clone https://hg.sr.ht/~scoopta/wlrobs
 	cd wlrobs/Release
 	make
 ## Installing
@@ -12,3 +12,5 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 	cp libwlrobs.so ~/.config/obs-studio/plugins/wlrobs/bin/64bit
 ## Uninstalling
 	rm -rf ~/.config/obs-studio/plugins/wlrobs
+## Bug Reports
+Please file bug reports at https://todo.sr.ht/~scoopta/wlrobs
