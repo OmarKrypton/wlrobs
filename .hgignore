@@ -7,3 +7,4 @@
 ^Debug/src/.+\.d$
 ^Release/src/.+\.o$
 ^Release/src/.+\.d$
+^\.hgrepos$
