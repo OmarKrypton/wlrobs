@@ -130,7 +130,6 @@ static void destroy(void* data) {
 }
 
 static void buffer(void* data, struct zwlr_screencopy_frame_v1* frame, uint32_t format, uint32_t width, uint32_t height, uint32_t stride) {
-	(void) frame;
 	struct wlr_source* this = data;
 	if(this->frame != NULL) {
 		free(this->frame);
