@@ -3,8 +3,8 @@
 ^\.settings$
 ^Debug/.+\.so$
 ^Release/.+\.so$
-^Debug/src/.+\.o$
-^Debug/src/.+\.d$
-^Release/src/.+\.o$
-^Release/src/.+\.d$
+^Debug/.+\.o$
+^Debug/.+\.d$
+^Release/.+\.o$
+^Release/.+\.d$
 ^\.hgrepos$

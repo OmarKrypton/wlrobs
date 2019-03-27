@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lwl_protos -lwayland-client
+LIBS :=
 
