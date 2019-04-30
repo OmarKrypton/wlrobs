@@ -185,6 +185,7 @@ static void buffer(void* data, struct zwlr_screencopy_frame_v1* frame, uint32_t 
 	this->frame->stride = stride;
 	this->frame->size = stride * height;
 	this->frame->fd = shm_open("/wlrobs", O_CREAT | O_RDWR | O_EXCL, 0);
+	shm_unlink("/wlrobs");
 	ftruncate(this->frame->fd, stride * height);
 	this->frame->pool = wl_shm_create_pool(this->shm, this->frame->fd, stride * height);
 	this->frame->buffer = wl_shm_pool_create_buffer(this->frame->pool, 0, width, height, stride, format);
@@ -211,7 +212,6 @@ static void ready(void* data, struct zwlr_screencopy_frame_v1* frame, uint32_t t
 	wl_buffer_destroy(this->frame->buffer);
 	wl_shm_pool_destroy(this->frame->pool);
 	close(this->frame->fd);
-	shm_unlink("/wlrobs");
 	this->waiting = false;
 }
 
