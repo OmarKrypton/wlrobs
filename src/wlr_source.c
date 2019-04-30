@@ -75,8 +75,7 @@ static void nop() {}
 static void get_xdg_name(void* data, struct zxdg_output_v1* output, const char* name) {
 	(void) output;
 	struct output_node* node = data;
-	node->name = malloc(strlen(name) + 1);
-	strcpy(node->name, name);
+	node->name = strdup(name);
 }
 
 static void destroy(void* data) {
