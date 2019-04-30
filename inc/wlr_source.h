@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <sys/mman.h>
 
 #include <obs/obs-module.h>

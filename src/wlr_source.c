@@ -38,6 +38,10 @@ struct wlr_source {
 	bool waiting;
 	bool flip_rb;
 	bool show_cursor;
+	bool render;
+	pthread_mutex_t mutex;
+	pthread_cond_t _waiting;
+	obs_property_t* obs_outputs;
 };
 
 struct output_node {
@@ -75,23 +79,53 @@ static void get_xdg_name(void* data, struct zxdg_output_v1* output, const char* 
 	strcpy(node->name, name);
 }
 
-static void update(void* data, obs_data_t* settings) {
+static void destroy(void* data) {
 	struct wlr_source* this = data;
-	struct output_node* node;
-	wl_list_for_each(node, &this->outputs, link) {
-		if(strcmp(node->name, obs_data_get_string(settings, "output")) == 0) {
-			this->current_output = node;
-		}
+	struct output_node* node, *safe_node;
+	wl_list_for_each_safe(node, safe_node, &this->outputs, link) {
+		wl_list_remove(&node->link);
+		free(node->name);
+		node->name = NULL;
+		free(node);
 	}
-	this->flip_rb = obs_data_get_bool(settings, "flip_rb");
-	this->show_cursor = obs_data_get_bool(settings, "show_cursor");
+	this->current_output = NULL;
+	free(this->frame);
+	this->frame = NULL;
+	if(this->wl != NULL) {
+		wl_display_disconnect(this->wl);
+	}
 }
 
-static void* create(obs_data_t* settings, obs_source_t* source) {
-	(void) source;
-	struct wlr_source* this = calloc(1, sizeof(struct wlr_source));
+static void destroy_complete(void* data) {
+	destroy(data);
+	free(data);
+}
+
+static void populate_outputs(struct wlr_source* this) {
+	struct output_node* node;
+	wl_list_for_each(node, &this->outputs, link) {
+		obs_property_list_add_string(this->obs_outputs, node->name, node->name);
+	}
+}
+
+static void setup_display(struct wlr_source* this, const char* display) {
+	pthread_mutex_lock(&this->mutex);
+	while(this->waiting) {
+		pthread_cond_wait(&this->_waiting, &this->mutex);
+	}
+	pthread_mutex_unlock(&this->mutex);
+	this->render = false;
+	if(this->wl != NULL) {
+		destroy(this);
+	}
 	wl_list_init(&this->outputs);
-	this->wl = wl_display_connect(NULL);
+	if(strcmp(display, "") == 0) {
+		display = NULL;
+	}
+	this->wl = wl_display_connect(display);
+	if(this->wl == NULL) {
+		return;
+	}
 	struct wl_registry* registry = wl_display_get_registry(this->wl);
 	struct wl_registry_listener listener = {
 		.global = add_interface,
@@ -112,21 +146,31 @@ static void* create(obs_data_t* settings, obs_source_t* source) {
 		zxdg_output_v1_add_listener(xdg_output, &xdg_listener, node);
 	}
 	wl_display_roundtrip(this->wl);
-	update(this, settings);
-	return this;
+	this->render = true;
 }
 
-static void destroy(void* data) {
+static void update(void* data, obs_data_t* settings) {
 	struct wlr_source* this = data;
-	struct output_node* node, *safe_node;
-	wl_list_for_each_safe(node, safe_node, &this->outputs, link) {
-		wl_list_remove(&node->link);
-		free(node->name);
-		free(node);
+	if(this->render) {
+		struct output_node* node;
+		wl_list_for_each(node, &this->outputs, link) {
+			if(strcmp(node->name, obs_data_get_string(settings, "output")) == 0) {
+				this->current_output = node;
+			}
+		}
+		this->flip_rb = obs_data_get_bool(settings, "flip_rb");
+		this->show_cursor = obs_data_get_bool(settings, "show_cursor");
 	}
-	free(this->frame);
-	wl_display_disconnect(this->wl);
-	free(this);
+}
+
+static void* create(obs_data_t* settings, obs_source_t* source) {
+	(void) source;
+	struct wlr_source* this = calloc(1, sizeof(struct wlr_source));
+	pthread_mutex_init(&this->mutex, NULL);
+	pthread_cond_init(&this->_waiting, NULL);
+	setup_display(this, obs_data_get_string(settings, "display"));
+	update(this, settings);
+	return this;
 }
 
 static void buffer(void* data, struct zwlr_screencopy_frame_v1* frame, uint32_t format, uint32_t width, uint32_t height, uint32_t stride) {
@@ -184,7 +228,7 @@ static void failed(void* data, struct zwlr_screencopy_frame_v1* frame) {
 static void render(void* data, gs_effect_t* effect) {
 	(void) effect;
 	struct wlr_source* this = data;
-	if(this->copy_manager == NULL || this->current_output == NULL) {
+	if(!this->render || this->current_output == NULL) {
 		return;
 	}
 	this->waiting = true;
@@ -199,16 +243,33 @@ static void render(void* data, gs_effect_t* effect) {
 	while(this->waiting) {
 		wl_display_roundtrip(this->wl);
 	}
+	pthread_mutex_lock(&this->mutex);
+	pthread_cond_broadcast(&this->_waiting);
+	pthread_mutex_unlock(&this->mutex);
+}
+
+static bool update_outputs(void* data, obs_properties_t* props, obs_property_t* property, obs_data_t* settings) {
+	(void) props;
+	(void) property;
+	(void) settings;
+	struct wlr_source* this = data;
+	if(this->obs_outputs == NULL) {
+		return false;
+	}
+	setup_display(this, obs_data_get_string(settings, "display"));
+	obs_property_list_clear(this->obs_outputs);
+	populate_outputs(this);
+	update(data, settings);
+	return true;
 }
 
 static obs_properties_t* get_properties(void* data) {
 	struct wlr_source* this = data;
 	obs_properties_t* props = obs_properties_create();
-	obs_property_t* outputs = obs_properties_add_list(props, "output", "Output", OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-	struct output_node* node;
-	wl_list_for_each(node, &this->outputs, link) {
-		obs_property_list_add_string(outputs, node->name, node->name);
-	}
+	obs_property_t* display = obs_properties_add_text(props, "display", "Wayland Display", OBS_TEXT_DEFAULT);
+	obs_property_set_modified_callback2(display, update_outputs, this);
+	this->obs_outputs = obs_properties_add_list(props, "output", "Output", OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	populate_outputs(this);
 	obs_properties_add_bool(props, "flip_rb", "Flip red and blue");
 	obs_properties_add_bool(props, "show_cursor", "Show mouse cursor");
 	return props;
@@ -238,7 +299,7 @@ struct obs_source_info wlr_source = {
 	.output_flags = OBS_SOURCE_VIDEO,
 	.get_name = get_name,
 	.create = create,
-	.destroy = destroy,
+	.destroy = destroy_complete,
 	.update = update,
 	.video_render = render,
 	.get_width = get_width,
