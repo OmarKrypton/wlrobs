@@ -135,14 +135,13 @@ static void setup_display(struct wlr_source* this, const char* display) {
 	struct output_node* node;
 	wl_list_for_each(node, &this->outputs, link) {
 		struct zxdg_output_v1* xdg_output = zxdg_output_manager_v1_get_xdg_output(this->output_manager, node->output);
-		struct zxdg_output_v1_listener xdg_listener = {
-			.description = nop,
-			.done = nop,
-			.logical_position = nop,
-			.logical_size = nop,
-			.name = get_xdg_name
-		};
-		zxdg_output_v1_add_listener(xdg_output, &xdg_listener, node);
+		struct zxdg_output_v1_listener* xdg_listener = malloc(sizeof(struct zxdg_output_v1_listener));
+		xdg_listener->description = nop;
+		xdg_listener->done = nop;
+		xdg_listener->logical_position = nop;
+		xdg_listener->logical_size = nop;
+		xdg_listener->name = get_xdg_name;
+		zxdg_output_v1_add_listener(xdg_output, xdg_listener, node);
 	}
 	wl_display_roundtrip(this->wl);
 	this->render = true;
