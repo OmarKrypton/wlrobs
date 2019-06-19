@@ -184,7 +184,7 @@ static void buffer(void* data, struct zwlr_screencopy_frame_v1* frame, uint32_t 
 	this->frame->height = height;
 	this->frame->stride = stride;
 	this->frame->size = stride * height;
-	this->frame->fd = shm_open("/wlrobs", O_CREAT | O_RDWR | O_EXCL, 0);
+	this->frame->fd = shm_open("/wlrobs", O_CREAT | O_RDWR, 0);
 	shm_unlink("/wlrobs");
 	ftruncate(this->frame->fd, stride * height);
 	this->frame->pool = wl_shm_create_pool(this->shm, this->frame->fd, stride * height);
