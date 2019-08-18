@@ -14,3 +14,7 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 	rm -rf ~/.config/obs-studio/plugins/wlrobs
 ## Bug Reports
 Please file bug reports at https://todo.sr.ht/~scoopta/wlrobs
+## Contributing
+Please submit patches to https://lists.sr.ht/~scoopta/wlrobs
+
+You can find documentation here https://man.sr.ht/hg.sr.ht/email.md
