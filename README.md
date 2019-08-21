@@ -1,5 +1,7 @@
 # wlrobs
 wlrobs is an obs-studio plugin that allows you to screen capture on wlroots based wayland compositors
+
+[![builds.sr.ht status](https://builds.sr.ht/~scoopta/wlrobs.svg)](https://builds.sr.ht/~scoopta/wlrobs?)
 ## Dependencies
 	libwayland-dev
 	libobs-dev

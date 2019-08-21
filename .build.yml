@@ -1,0 +1,10 @@
+image: debian/sid
+packages:
+ - build-essential
+ - libwayland-dev
+ - libobs-dev
+
+tasks:
+ - build: |
+    cd wlrobs/Release
+    make
