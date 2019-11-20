@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <obs/obs-module.h>
 
