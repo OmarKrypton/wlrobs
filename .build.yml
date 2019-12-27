@@ -3,8 +3,10 @@ packages:
  - build-essential
  - libwayland-dev
  - libobs-dev
+ - meson
 
 tasks:
  - build: |
-    cd wlrobs/Release
-    make
+    cd wlrobs
+    meson build
+    ninja -C build

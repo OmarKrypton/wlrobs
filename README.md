@@ -5,10 +5,13 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 ## Dependencies
 	libwayland-dev
 	libobs-dev
+	pkg-config
+	meson
 ## Building
 	hg clone https://hg.sr.ht/~scoopta/wlrobs
-	cd wlrobs/Release
-	make
+	cd wlrobs
+	meson build
+	ninja -C build
 ## Installing
 	mkdir -p ~/.config/obs-studio/plugins/wlrobs/bin/64bit
 	cp libwlrobs.so ~/.config/obs-studio/plugins/wlrobs/bin/64bit

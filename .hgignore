@@ -1,10 +1,6 @@
 ^\.cproject$
 ^\.project$
 ^\.settings$
-^Debug/.+\.so$
-^Release/.+\.so$
-^Debug/.+\.o$
-^Debug/.+\.d$
-^Release/.+\.o$
-^Release/.+\.d$
 ^\.hgrepos$
+^build$
+^Debug$
