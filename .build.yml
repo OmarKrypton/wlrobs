@@ -3,6 +3,7 @@ packages:
  - build-essential
  - libwayland-dev
  - libobs-dev
+ - pkg-config
  - meson
 
 tasks:
