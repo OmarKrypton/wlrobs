@@ -3,6 +3,7 @@ packages:
  - build-essential
  - libwayland-dev
  - libobs-dev
+ - libx11-dev
  - pkg-config
  - meson
 
