@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019 Scoopta
+ *  Copyright (C) 2019-2020 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
     along with wlrobs.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <wlr_source.h>
+#include <scpy_source.h>
 
 struct wlr_frame {
 	uint32_t format;
@@ -53,7 +53,7 @@ struct output_node {
 
 static const char* get_name(void* data) {
 	(void) data;
-	return "Wayland output";
+	return "Wayland output(scpy)";
 }
 
 static void add_interface(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version) {
@@ -293,8 +293,8 @@ static uint32_t get_height(void* data) {
 	}
 }
 
-struct obs_source_info wlr_source = {
-	.id = "wlrobs",
+struct obs_source_info scpy_source = {
+	.id = "wlrobs-dmabuf",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO,
 	.get_name = get_name,

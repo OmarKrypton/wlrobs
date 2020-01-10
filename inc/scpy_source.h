@@ -15,24 +15,24 @@
     along with wlrobs.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef SCPY_SOURCE_H
+#define SCPY_SOURCE_H
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+
 #include <obs/obs-module.h>
 
-#ifdef ENABLE_SCPY
-#include <scpy_source.h>
-#endif
+#include <wayland-client.h>
 
-#ifdef ENABLE_DMABUF
-#include <dmabuf_source.h>
-#endif
+#include <xdg-output-unstable-v1-client-protocol.h>
+#include <wlr-screencopy-unstable-v1-client-protocol.h>
 
-OBS_DECLARE_MODULE()
+struct obs_source_info scpy_source;
 
-bool obs_module_load() {
-#ifdef ENABLE_SCPY
-	obs_register_source(&scpy_source);
 #endif
-#ifdef ENABLE_DMABUF
-	obs_register_source(&dmabuf_source);
-#endif
-	return true;
-}

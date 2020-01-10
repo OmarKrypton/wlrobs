@@ -2,16 +2,28 @@
 wlrobs is an obs-studio plugin that allows you to screen capture on wlroots based wayland compositors
 
 [![builds.sr.ht status](https://builds.sr.ht/~scoopta/wlrobs.svg)](https://builds.sr.ht/~scoopta/wlrobs?)
+
+## dmabuf backend
+Please note that in order to use the dmabuf backend you have to use a fork of OBS which has an EGL backend such as https://github.com/cyclopsian/obs-studio/tree/wayland
+
+This backend is also not perfect and there are some known minor issues such as the preview in the settings window being upside down as well as being unable to resize the source, please report all other bugs to the bug tracker
+
 ## Dependencies
 	libwayland-dev
 	libobs-dev
 	pkg-config
 	meson
+The dmabuf backend additionally requires
+
+	libdrm-dev
+	libegl-dev
 ## Building
 	hg clone https://hg.sr.ht/~scoopta/wlrobs
 	cd wlrobs
 	meson build
 	ninja -C build
+The screencopy backend can be disabled with the `-Duse_scpy=false` meson option, likewise dmabuf can be disabled with `-Duse_dmabuf=false`
+
 ## Installing
 	mkdir -p ~/.config/obs-studio/plugins/wlrobs/bin/64bit
 	cp build/libwlrobs.so ~/.config/obs-studio/plugins/wlrobs/bin/64bit

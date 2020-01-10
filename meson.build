@@ -1,14 +1,26 @@
 project('wlrobs', 'c', default_options : ['buildtype=release', 'warning_level=2'])
-cc = meson.get_compiler('c')
 
 inc = include_directories('inc')
 wayland = dependency('wayland-client')
 obs = dependency('libobs')
 
-shared_library(meson.project_name(),
-'src/main.c',
-'src/wlr_source.c',
-'proto/wlr-screencopy-unstable-v1-protocol.c',
-'proto/xdg-output-unstable-v1-protocol.c',
-include_directories : inc,
-dependencies : [wayland, obs])
+sources = ['src/main.c', 'proto/xdg-output-unstable-v1-protocol.c']
+
+deps = [wayland, obs]
+
+if get_option('use_scpy')
+	sources += ['src/scpy_source.c', 'proto/wlr-screencopy-unstable-v1-protocol.c']
+	add_project_arguments('-DENABLE_SCPY', language : 'c')
+endif
+
+if get_option('use_dmabuf')
+	egl = dependency('egl')
+	drm = dependency('libdrm')
+	deps += [egl, drm]
+	sources += ['src/dmabuf_source.c',
+			'glad/glad.c',
+			'proto/wlr-export-dmabuf-unstable-v1-protocol.c']
+	add_project_arguments('-DENABLE_DMABUF', language : 'c')
+endif
+
+shared_library(meson.project_name(), sources, include_directories : inc, dependencies : deps)

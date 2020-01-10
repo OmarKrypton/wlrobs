@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019 Scoopta
+ *  Copyright (C) 2019-2020 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
     along with wlrobs.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WLR_SOURCE_H
-#define WLR_SOURCE_H
+#ifndef DMABUF_SOURCE_H
+#define DMABUF_SOURCE_H
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -24,15 +24,18 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
+#include <drm_fourcc.h>
+
+#include <glad/glad.h>
+#include <glad/glad_egl.h>
 
 #include <obs/obs-module.h>
 
 #include <wayland-client.h>
 
 #include <xdg-output-unstable-v1-client-protocol.h>
-#include <wlr-screencopy-unstable-v1-client-protocol.h>
+#include <wlr-export-dmabuf-unstable-v1-client-protocol.h>
 
-struct obs_source_info wlr_source;
+struct obs_source_info dmabuf_source;
 
 #endif
