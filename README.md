@@ -14,7 +14,7 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 	ninja -C build
 ## Installing
 	mkdir -p ~/.config/obs-studio/plugins/wlrobs/bin/64bit
-	cp libwlrobs.so ~/.config/obs-studio/plugins/wlrobs/bin/64bit
+	cp build/libwlrobs.so ~/.config/obs-studio/plugins/wlrobs/bin/64bit
 ## Uninstalling
 	rm -rf ~/.config/obs-studio/plugins/wlrobs
 ## Bug Reports
