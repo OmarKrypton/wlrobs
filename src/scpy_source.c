@@ -42,6 +42,8 @@ struct wlr_source {
 	pthread_mutex_t mutex;
 	pthread_cond_t _waiting;
 	obs_property_t* obs_outputs;
+	uint32_t x, y;
+	uint32_t width, height;
 };
 
 struct output_node {
@@ -160,6 +162,10 @@ static void update(void* data, obs_data_t* settings) {
 		}
 		this->flip_rb = obs_data_get_bool(settings, "flip_rb");
 		this->show_cursor = obs_data_get_bool(settings, "show_cursor");
+		this->x = obs_data_get_int(settings, "x");
+		this->y = obs_data_get_int(settings, "y");
+		this->width = obs_data_get_int(settings, "width");
+		this->height = obs_data_get_int(settings, "height");
 	}
 }
 
@@ -232,7 +238,14 @@ static void render(void* data, gs_effect_t* effect) {
 		return;
 	}
 	this->waiting = true;
-	struct zwlr_screencopy_frame_v1* frame = zwlr_screencopy_manager_v1_capture_output(this->copy_manager, this->show_cursor, this->current_output->output);
+
+	struct zwlr_screencopy_frame_v1* frame;
+	if(this->width == 0 || this->height == 0) {
+		frame = zwlr_screencopy_manager_v1_capture_output(this->copy_manager, this->show_cursor, this->current_output->output);
+	} else {
+		frame = zwlr_screencopy_manager_v1_capture_output_region(this->copy_manager, this->show_cursor, this->current_output->output, this->x, this->y, this->width, this->height);
+	}
+
 	struct zwlr_screencopy_frame_v1_listener listener = {
 		.buffer = buffer,
 		.flags = nop,
@@ -271,6 +284,10 @@ static obs_properties_t* get_properties(void* data) {
 	populate_outputs(this);
 	obs_properties_add_bool(props, "flip_rb", "Flip red and blue");
 	obs_properties_add_bool(props, "show_cursor", "Show mouse cursor");
+	obs_properties_add_int(props, "x", "X", 0, UINT16_MAX, 1);
+	obs_properties_add_int(props, "y", "Y", 0, UINT16_MAX, 1);
+	obs_properties_add_int(props, "width", "Width", 0, UINT16_MAX, 1);
+	obs_properties_add_int(props, "height", "Height", 0, UINT16_MAX, 1);
 	return props;
 }
 
