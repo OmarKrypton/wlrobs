@@ -448,7 +448,7 @@ static uint32_t get_height(void* data) {
 }
 
 struct obs_source_info dmabuf_source = {
-	.id = "wlrobs-scpy",
+	.id = "wlrobs-dmabuf",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = get_name,
