@@ -406,7 +406,6 @@ static void render(void* data, gs_effect_t* effect) {
 static bool update_outputs(void* data, obs_properties_t* props, obs_property_t* property, obs_data_t* settings) {
 	(void) props;
 	(void) property;
-	(void) settings;
 	struct wlr_source* this = data;
 	if(this->obs_outputs == NULL) {
 		return false;
