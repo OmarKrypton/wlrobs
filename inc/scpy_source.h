@@ -33,6 +33,6 @@
 #include <xdg-output-unstable-v1-client-protocol.h>
 #include <wlr-screencopy-unstable-v1-client-protocol.h>
 
-struct obs_source_info scpy_source;
+extern struct obs_source_info scpy_source;
 
 #endif

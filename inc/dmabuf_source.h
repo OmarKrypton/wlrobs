@@ -36,6 +36,6 @@
 #include <xdg-output-unstable-v1-client-protocol.h>
 #include <wlr-export-dmabuf-unstable-v1-client-protocol.h>
 
-struct obs_source_info dmabuf_source;
+extern struct obs_source_info dmabuf_source;
 
 #endif
