@@ -27,4 +27,11 @@ if get_option('use_dmabuf')
 	endif
 endif
 
-shared_library(meson.project_name(), sources, include_directories : inc, dependencies : deps)
+shared_library(
+	meson.project_name(),
+	sources,
+	include_directories : inc,
+	dependencies : deps,
+	install : true,
+	install_dir : get_option('libdir') / 'obs-plugins'
+)
