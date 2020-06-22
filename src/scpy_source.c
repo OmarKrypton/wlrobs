@@ -250,7 +250,10 @@ static void render(void* data, gs_effect_t* effect) {
 		.buffer = buffer,
 		.flags = nop,
 		.ready = ready,
-		.failed = failed
+		.failed = failed,
+		.damage = nop,
+		.linux_dmabuf = nop,
+		.buffer_done = nop,
 	};
 	zwlr_screencopy_frame_v1_add_listener(frame, &listener, this);
 	while(this->waiting) {
