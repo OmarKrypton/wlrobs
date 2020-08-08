@@ -18,7 +18,6 @@
 #include <dmabuf_source.h>
 
 static bool gl_init = false;
-static GLuint vao, vbo, ebo, prog;
 static struct zwlr_export_dmabuf_frame_v1_listener* dmabuf_listener;
 
 struct wlr_frame {
@@ -30,9 +29,8 @@ struct wlr_frame {
 	int32_t fds[4];
 	uint32_t offsets[4];
 	uint32_t plane_indices[4];
-	GLuint texture;
+	gs_texture_t* texture;
 	EGLImage img;
-	GLint old_prog;
 	struct zwlr_export_dmabuf_frame_v1* frame;
 };
 
@@ -97,14 +95,14 @@ static void destroy(void* data) {
 	this->current_output = NULL;
 
 	if(this->current_frame != NULL) {
-		glDeleteTextures(1, &this->current_frame->texture);
+		gs_texture_destroy(this->current_frame->texture);
 		eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
 		free(this->current_frame);
 		this->current_frame = NULL;
 	}
 
 	if(this->next_frame != NULL) {
-		glDeleteTextures(1, &this->next_frame->texture);
+		gs_texture_destroy(this->current_frame->texture);
 		eglDestroyImage(eglGetCurrentDisplay(), this->next_frame->img);
 		free(this->next_frame);
 		this->next_frame = NULL;
@@ -257,8 +255,8 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 	};
 
 	this->next_frame->img = eglCreateImage(eglGetCurrentDisplay(), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attr);
-	glGenTextures(1, &this->next_frame->texture);
-	glBindTexture(GL_TEXTURE_2D, this->next_frame->texture);
+	this->next_frame->texture = gs_texture_create(this->next_frame->width, this->next_frame->height, GS_BGRA, 1, NULL, GS_GL_DUMMYTEX);
+	glBindTexture(GL_TEXTURE_2D, *(GLuint*) gs_texture_get_obj(this->next_frame->texture));
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -267,9 +265,11 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 
 	glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, this->next_frame->img);
 
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	if(this->current_frame != NULL) {
 		if(this->current_frame->img != NULL) {
-			glDeleteTextures(1, &this->current_frame->texture);
+			gs_texture_destroy(this->current_frame->texture);
 			eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
 		}
 
@@ -310,71 +310,7 @@ static void render(void* data, gs_effect_t* effect) {
 
 		gl_init = gladLoadGLES2Loader((GLADloadproc) eglGetProcAddress);
 
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
 
-		GLfloat vbo_data[] = {
-			//Vertex Data	//Texture data
-			-1.0f, 1.0f,	0.0f, 1.0f, //Top left
-			-1.0f, -1.0f,	0.0f, 0.0f, //Bottom left
-			1.0f, -1.0f,	1.0f, 0.0f, //Bottom right
-			1.0f, 1.0f,		1.0f, 1.0f, //Top right
-		};
-
-		glGenBuffers(1, &vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vbo_data), vbo_data, GL_STATIC_DRAW);
-
-		GLuint ebo_data[] = {
-			0, 1, 2,
-			2, 3, 0
-		};
-
-		glGenBuffers(1, &ebo);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ebo_data), ebo_data, GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*) (2 * sizeof(GLfloat)));
-		glEnableVertexAttribArray(1);
-
-		const char* vert[] = {"#version 330\n"
-				"layout(location = 0) in vec2 datIn;"
-				"layout(location = 1) in vec2 texIn;"
-
-				"out vec2 texCoords;"
-
-				"void main() {"
-				"	texCoords = texIn;"
-				"	gl_Position = vec4(datIn, 0.0f, 1.0f);"
-				"}"};
-
-		const char* frag[] = {"#version 330\n"
-				"out vec4 color;"
-				"in vec2 texCoords;"
-
-				"uniform sampler2D tex2D;"
-
-				"void main() {"
-				"	color = texture(tex2D, texCoords);"
-				"}"};
-
-
-		GLuint vsh = glCreateShader(GL_VERTEX_SHADER);
-		GLuint fsh = glCreateShader(GL_FRAGMENT_SHADER);
-
-		GLint vert_len[] = {strlen(vert[0])};
-		GLint frag_len[] = {strlen(frag[0])};
-
-		glShaderSource(vsh, 1, vert, vert_len);
-		glShaderSource(fsh, 1, frag, frag_len);
-		glCompileShader(vsh);
-		glCompileShader(fsh);
-
-		prog = glCreateProgram();
-		glAttachShader(prog, vsh);
-		glAttachShader(prog, fsh);
-		glLinkProgram(prog);
 	}
 	if(!this->render || this->current_output == NULL) {
 		return;
@@ -387,16 +323,7 @@ static void render(void* data, gs_effect_t* effect) {
 	wl_display_roundtrip(this->wl);
 
 	if(this->current_frame != NULL) {
-		glGetIntegerv(GL_CURRENT_PROGRAM, &this->current_frame->old_prog);
-		glBindVertexArray(vao);
-		glUseProgram(prog);
-		glBindTexture(GL_TEXTURE_2D, this->current_frame->texture);
-		GLint tex2D = glGetUniformLocation(prog, "tex2D");
-		glUniform1i(tex2D, 0);
-
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		glUseProgram(this->current_frame->old_prog);
+		obs_source_draw(this->current_frame->texture, 0, 0, 0, 0, false);
 	}
 	pthread_mutex_lock(&this->mutex);
 	pthread_cond_broadcast(&this->_waiting);
@@ -449,7 +376,7 @@ static uint32_t get_height(void* data) {
 struct obs_source_info dmabuf_source = {
 	.id = "wlrobs-dmabuf",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
+	.output_flags = OBS_SOURCE_VIDEO,
 	.get_name = get_name,
 	.create = create,
 	.destroy = destroy_complete,
