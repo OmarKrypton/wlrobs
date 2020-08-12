@@ -8,8 +8,6 @@ This plugin only records wayland desktops, it does not make OBS run wayland nati
 ## dmabuf backend
 Please note that in order to use the dmabuf backend you have to use a fork of OBS which has an EGL backend such as https://github.com/cyclopsian/obs-studio/tree/wayland
 
-This backend is also not perfect and there are some known minor issues such as the preview in the settings window being upside down as well as being unable to resize the source, please report all other bugs to the bug tracker
-
 ## Dependencies
 	libwayland-dev
 	libobs-dev
