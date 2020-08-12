@@ -18,7 +18,6 @@
 #include <dmabuf_source.h>
 
 static bool gl_init = false;
-static struct zwlr_export_dmabuf_frame_v1_listener* dmabuf_listener;
 
 struct wlr_frame {
 	uint32_t format;
@@ -301,12 +300,13 @@ static void cancel(void* data, struct zwlr_export_dmabuf_frame_v1* frame, enum z
 static void render(void* data, gs_effect_t* effect) {
 	(void) effect;
 	struct wlr_source* this = data;
+	static struct zwlr_export_dmabuf_frame_v1_listener dmabuf_listener;
+
 	if(!gl_init) {
-		dmabuf_listener = malloc(sizeof(struct zwlr_export_dmabuf_frame_v1_listener));
-		dmabuf_listener->frame = _frame;
-		dmabuf_listener->object = object;
-		dmabuf_listener->ready = ready;
-		dmabuf_listener->cancel = cancel;
+		dmabuf_listener.frame = _frame;
+		dmabuf_listener.object = object;
+		dmabuf_listener.ready = ready;
+		dmabuf_listener.cancel = cancel;
 
 		gl_init = gladLoadGLES2Loader((GLADloadproc) eglGetProcAddress);
 
@@ -318,7 +318,7 @@ static void render(void* data, gs_effect_t* effect) {
 	if(!this->waiting) {
 		this->waiting = true;
 		struct zwlr_export_dmabuf_frame_v1* frame = zwlr_export_dmabuf_manager_v1_capture_output(this->dmabuf_manager, this->show_cursor, this->current_output->output);
-		zwlr_export_dmabuf_frame_v1_add_listener(frame, dmabuf_listener, this);
+		zwlr_export_dmabuf_frame_v1_add_listener(frame, &dmabuf_listener, this);
 	}
 	wl_display_roundtrip(this->wl);
 
