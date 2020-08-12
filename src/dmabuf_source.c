@@ -101,7 +101,7 @@ static void destroy(void* data) {
 	}
 
 	if(this->next_frame != NULL) {
-		gs_texture_destroy(this->current_frame->texture);
+		gs_texture_destroy(this->next_frame->texture);
 		eglDestroyImage(eglGetCurrentDisplay(), this->next_frame->img);
 		free(this->next_frame);
 		this->next_frame = NULL;
