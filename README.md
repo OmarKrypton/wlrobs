@@ -6,7 +6,7 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 This plugin only records wayland desktops, it does not make OBS run wayland native. If you're not using a fork of OBS with an EGL backend you need to set `QT_QPA_PLATFORM=xcb` or else OBS does not work.
 
 ## dmabuf backend
-Please note that in order to use the dmabuf backend you have to use a fork of OBS which has an EGL backend such as https://github.com/cyclopsian/obs-studio/tree/wayland
+Please note that in order to use the dmabuf backend you have to use a fork of OBS which has an EGL backend such as https://github.com/GeorgesStavracas/obs-studio/tree/feaneron/egl-wayland
 
 ## Dependencies
 	libwayland-dev
