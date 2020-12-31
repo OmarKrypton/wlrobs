@@ -1,12 +1,15 @@
 project('wlrobs', 'c', default_options : ['buildtype=release', 'warning_level=2'])
 
+cc = meson.get_compiler('c')
+
 inc = include_directories('inc')
 wayland = dependency('wayland-client')
 obs = dependency('libobs')
+dl = cc.find_library('dl')
 
 sources = ['src/main.c', 'proto/xdg-output-unstable-v1-protocol.c']
 
-deps = [wayland, obs]
+deps = [wayland, obs, dl]
 
 if get_option('use_scpy')
 	sources += ['src/scpy_source.c', 'proto/wlr-screencopy-unstable-v1-protocol.c']
@@ -21,7 +24,7 @@ if get_option('use_dmabuf')
 		sources += ['src/dmabuf_source.c',
 					'glad/glad.c',
 					'proto/wlr-export-dmabuf-unstable-v1-protocol.c']
-		add_project_arguments('-DENABLE_DMABUF', language : 'c')
+		add_project_arguments('-D_GNU_SOURCE', '-DENABLE_DMABUF', language : 'c')
 	else
 		warning('dmabuf was disabled due to missing dependencies')
 	endif

@@ -19,6 +19,7 @@
 #define DMABUF_SOURCE_H
 
 #include <fcntl.h>
+#include <dlfcn.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>

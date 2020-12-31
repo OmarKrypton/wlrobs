@@ -213,12 +213,7 @@ static void object(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 	this->next_frame->plane_indices[index] = plane_index;
 }
 
-static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
-	(void) frame;
-	(void) tv_sec_hi;
-	(void) tv_sec_lo;
-	(void) tv_nsec;
-	struct wlr_source* this = data;
+static void setup_texture_manual(struct wlr_source* this) {
 	EGLint fd, offset, stride;
 	switch(this->next_frame->plane_indices[0]) {
 	case 0:
@@ -265,11 +260,34 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 	glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, this->next_frame->img);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
+	(void) frame;
+	(void) tv_sec_hi;
+	(void) tv_sec_lo;
+	(void) tv_nsec;
+	struct wlr_source* this = data;
+	gs_texture_t* (*create_dmabuf_texture)(unsigned int width, unsigned int height,
+											enum gs_color_format format,
+											uint32_t n_planes, const int* fds,
+											const uint32_t* strides, const uint32_t* offsets,
+											const uint64_t* modifiers) = dlsym(RTLD_DEFAULT, "gs_texture_create_from_dmabuf");
+	if(create_dmabuf_texture == NULL) {
+		setup_texture_manual(this);
+	} else {
+		this->next_frame->img = NULL;
+		this->next_frame->texture = create_dmabuf_texture(this->next_frame->width, this->next_frame->height, GS_BGRA,
+								this->next_frame->obj_count, this->next_frame->fds,
+								this->next_frame->strides, this->next_frame->offsets, NULL);
+	}
 
 	if(this->current_frame != NULL) {
 		if(this->current_frame->img != NULL) {
 			gs_texture_destroy(this->current_frame->texture);
-			eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
+			if(this->next_frame->img != NULL) {
+				eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
+			}
 		}
 
 		if(this->current_frame->frame != NULL) {
