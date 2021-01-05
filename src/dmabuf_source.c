@@ -283,11 +283,12 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 	}
 
 	if(this->current_frame != NULL) {
-		if(this->current_frame->img != NULL) {
+		if(this->current_frame->texture != NULL) {
 			gs_texture_destroy(this->current_frame->texture);
-			if(this->current_frame->img != NULL) {
-				eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
-			}
+		}
+
+		if(this->current_frame->img != NULL) {
+			eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
 		}
 
 		if(this->current_frame->frame != NULL) {
