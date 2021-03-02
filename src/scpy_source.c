@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019-2020 Scoopta
+ *  Copyright (C) 2019-2021 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,6 +16,19 @@
  */
 
 #include <scpy_source.h>
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+
+#include <wayland-client.h>
+
+#include <xdg-output-unstable-v1-client-protocol.h>
+#include <wlr-screencopy-unstable-v1-client-protocol.h>
 
 struct wlr_frame {
 	uint32_t format;
