@@ -17,17 +17,8 @@ if get_option('use_scpy')
 endif
 
 if get_option('use_dmabuf')
-	egl = dependency('egl', required : false)
-	drm = dependency('libdrm', required : false)
-	if egl.found() and drm.found()
-		deps += [egl, drm]
-		sources += ['src/dmabuf_source.c',
-					'glad/glad.c',
-					'proto/wlr-export-dmabuf-unstable-v1-protocol.c']
-		add_project_arguments('-D_GNU_SOURCE', '-DENABLE_DMABUF', language : 'c')
-	else
-		warning('dmabuf was disabled due to missing dependencies')
-	endif
+	sources += ['src/dmabuf_source.c', 'proto/wlr-export-dmabuf-unstable-v1-protocol.c']
+	add_project_arguments('-D_GNU_SOURCE', '-DENABLE_DMABUF', language : 'c')
 endif
 
 shared_library(

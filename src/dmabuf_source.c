@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019-2020 Scoopta
+ *  Copyright (C) 2019-2021 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,18 @@
 
 #include <dmabuf_source.h>
 
-static bool gl_init = false;
+#include <fcntl.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <sys/mman.h>
+
+#include <wayland-client.h>
+
+#include <xdg-output-unstable-v1-client-protocol.h>
+#include <wlr-export-dmabuf-unstable-v1-client-protocol.h>
 
 struct wlr_frame {
 	uint32_t format;
@@ -29,7 +40,6 @@ struct wlr_frame {
 	uint32_t offsets[4];
 	uint32_t plane_indices[4];
 	gs_texture_t* texture;
-	EGLImage img;
 	struct zwlr_export_dmabuf_frame_v1* frame;
 };
 
@@ -95,14 +105,12 @@ static void destroy(void* data) {
 
 	if(this->current_frame != NULL) {
 		gs_texture_destroy(this->current_frame->texture);
-		eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
 		free(this->current_frame);
 		this->current_frame = NULL;
 	}
 
 	if(this->next_frame != NULL) {
 		gs_texture_destroy(this->next_frame->texture);
-		eglDestroyImage(eglGetCurrentDisplay(), this->next_frame->img);
 		free(this->next_frame);
 		this->next_frame = NULL;
 	}
@@ -213,82 +221,20 @@ static void object(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 	this->next_frame->plane_indices[index] = plane_index;
 }
 
-static void setup_texture_manual(struct wlr_source* this) {
-	EGLint fd, offset, stride;
-	switch(this->next_frame->plane_indices[0]) {
-	case 0:
-		fd = EGL_DMA_BUF_PLANE0_FD_EXT;
-		offset = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
-		stride = EGL_DMA_BUF_PLANE0_PITCH_EXT;
-		break;
-	case 1:
-		fd = EGL_DMA_BUF_PLANE1_FD_EXT;
-		offset = EGL_DMA_BUF_PLANE1_OFFSET_EXT;
-		stride = EGL_DMA_BUF_PLANE1_PITCH_EXT;
-		break;
-	case 2:
-		fd = EGL_DMA_BUF_PLANE2_FD_EXT;
-		offset = EGL_DMA_BUF_PLANE2_OFFSET_EXT;
-		stride = EGL_DMA_BUF_PLANE2_PITCH_EXT;
-		break;
-	default:
-		fd = EGL_DMA_BUF_PLANE0_FD_EXT;
-		offset = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
-		stride = EGL_DMA_BUF_PLANE0_PITCH_EXT;
-		break;
-	}
-
-	const EGLAttrib attr[] = {
-		EGL_WIDTH, this->next_frame->width,
-		EGL_HEIGHT, this->next_frame->height,
-		EGL_LINUX_DRM_FOURCC_EXT, this->next_frame->format,
-		fd, this->next_frame->fds[0],
-		offset, this->next_frame->offsets[0],
-		stride, this->next_frame->strides[0],
-		EGL_NONE
-	};
-
-	this->next_frame->img = eglCreateImage(eglGetCurrentDisplay(), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attr);
-	this->next_frame->texture = gs_texture_create(this->next_frame->width, this->next_frame->height, GS_BGRA, 1, NULL, GS_GL_DUMMYTEX);
-	glBindTexture(GL_TEXTURE_2D, *(GLuint*) gs_texture_get_obj(this->next_frame->texture));
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, this->next_frame->img);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-}
-
 static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
 	(void) frame;
 	(void) tv_sec_hi;
 	(void) tv_sec_lo;
 	(void) tv_nsec;
 	struct wlr_source* this = data;
-	gs_texture_t* (*create_dmabuf_texture)(unsigned int width, unsigned int height,
-											enum gs_color_format format,
-											uint32_t n_planes, const int* fds,
-											const uint32_t* strides, const uint32_t* offsets,
-											const uint64_t* modifiers) = dlsym(RTLD_DEFAULT, "gs_texture_create_from_dmabuf");
-	if(create_dmabuf_texture == NULL) {
-		setup_texture_manual(this);
-	} else {
-		this->next_frame->img = NULL;
-		this->next_frame->texture = create_dmabuf_texture(this->next_frame->width, this->next_frame->height, GS_BGRA,
+
+	this->next_frame->texture = gs_texture_create_from_dmabuf(this->next_frame->width, this->next_frame->height, GS_BGRA,
 								this->next_frame->obj_count, this->next_frame->fds,
 								this->next_frame->strides, this->next_frame->offsets, NULL);
-	}
 
 	if(this->current_frame != NULL) {
 		if(this->current_frame->texture != NULL) {
 			gs_texture_destroy(this->current_frame->texture);
-		}
-
-		if(this->current_frame->img != NULL) {
-			eglDestroyImage(eglGetCurrentDisplay(), this->current_frame->img);
 		}
 
 		if(this->current_frame->frame != NULL) {
@@ -316,21 +262,17 @@ static void cancel(void* data, struct zwlr_export_dmabuf_frame_v1* frame, enum z
 	this->waiting = false;
 }
 
+static struct zwlr_export_dmabuf_frame_v1_listener dmabuf_listener = {
+	.frame = _frame,
+	.object = object,
+	.ready = ready,
+	.cancel = cancel
+};
+
 static void render(void* data, gs_effect_t* effect) {
 	(void) effect;
 	struct wlr_source* this = data;
-	static struct zwlr_export_dmabuf_frame_v1_listener dmabuf_listener;
 
-	if(!gl_init) {
-		dmabuf_listener.frame = _frame;
-		dmabuf_listener.object = object;
-		dmabuf_listener.ready = ready;
-		dmabuf_listener.cancel = cancel;
-
-		gl_init = gladLoadGLES2Loader((GLADloadproc) eglGetProcAddress);
-
-
-	}
 	if(!this->render || this->current_output == NULL) {
 		return;
 	}
@@ -342,7 +284,12 @@ static void render(void* data, gs_effect_t* effect) {
 	wl_display_roundtrip(this->wl);
 
 	if(this->current_frame != NULL) {
-		obs_source_draw(this->current_frame->texture, 0, 0, 0, 0, false);
+		gs_effect_t* effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		gs_eparam_t* image = gs_effect_get_param_by_name(effect, "image");
+		gs_effect_set_texture(image, this->current_frame->texture);
+		while(gs_effect_loop(effect, "Draw")) {
+			gs_draw_sprite(this->current_frame->texture, 0, 0, 0);
+		}
 	}
 	pthread_mutex_lock(&this->mutex);
 	pthread_cond_broadcast(&this->_waiting);
@@ -395,7 +342,7 @@ static uint32_t get_height(void* data) {
 struct obs_source_info dmabuf_source = {
 	.id = "wlrobs-dmabuf",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = get_name,
 	.create = create,
 	.destroy = destroy_complete,
