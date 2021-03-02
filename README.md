@@ -8,6 +8,8 @@ This plugin only records wayland desktops, it does not make OBS run wayland nati
 ## dmabuf backend
 Please note that in order to use the dmabuf backend you have to update to OBS master commit 7867d16e6b1d1c66913e3f1acb079cef44a1204f or later
 
+As of wlrobs 5f1c794e4614 the dmabuf backend will not work on older OBS EGL forks which do not support `gs_texture_create_from_dmabuf()`
+
 ## Dependencies
 	libwayland-dev
 	libobs-dev
