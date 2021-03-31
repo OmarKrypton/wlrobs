@@ -228,7 +228,8 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 	(void) tv_nsec;
 	struct wlr_source* this = data;
 
-	this->next_frame->texture = gs_texture_create_from_dmabuf(this->next_frame->width, this->next_frame->height, GS_BGRA,
+	this->next_frame->texture = gs_texture_create_from_dmabuf(this->next_frame->width, this->next_frame->height,
+								this->next_frame->format, GS_BGRA,
 								this->next_frame->obj_count, this->next_frame->fds,
 								this->next_frame->strides, this->next_frame->offsets, NULL);
 
