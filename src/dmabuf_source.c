@@ -39,6 +39,7 @@ struct wlr_frame {
 	int32_t fds[4];
 	uint32_t offsets[4];
 	uint32_t plane_indices[4];
+	uint64_t modifiers[4];
 	gs_texture_t* texture;
 	struct zwlr_export_dmabuf_frame_v1* frame;
 };
@@ -195,20 +196,21 @@ static void* create(obs_data_t* settings, obs_source_t* source) {
 	return this;
 }
 
-static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t buffer_flags, uint32_t flags, uint32_t format, uint32_t high, uint32_t low, uint32_t obj_count) {
+static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t buffer_flags, uint32_t flags, uint32_t format, uint32_t mod_high, uint32_t mod_low, uint32_t obj_count) {
 	(void) frame;
 	(void) x;
 	(void) y;
 	(void) buffer_flags;
 	(void) flags;
-	(void) high;
-	(void) low;
 	struct wlr_source* this = data;
 	this->next_frame = calloc(1, sizeof(struct wlr_frame));
 	this->next_frame->format = format;
 	this->next_frame->width = width;
 	this->next_frame->height = height;
 	this->next_frame->obj_count = obj_count;
+	for (int i = 0; i < 4; ++i) {
+		this->next_frame->modifiers[i] = (((uint64_t) mod_high) << 32) | mod_low;
+	}
 }
 
 static void object(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t index, int32_t fd, uint32_t size, uint32_t offset, uint32_t stride, uint32_t plane_index) {
@@ -231,7 +233,8 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 	this->next_frame->texture = gs_texture_create_from_dmabuf(this->next_frame->width, this->next_frame->height,
 								this->next_frame->format, GS_BGRA,
 								this->next_frame->obj_count, this->next_frame->fds,
-								this->next_frame->strides, this->next_frame->offsets, NULL);
+								this->next_frame->strides, this->next_frame->offsets,
+								this->next_frame->modifiers);
 
 	if(this->current_frame != NULL) {
 		if(this->current_frame->texture != NULL) {
