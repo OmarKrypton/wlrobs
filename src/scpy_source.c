@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019-2021 Scoopta
+ *  Copyright (C) 2019-2022 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@
 #include <xdg-output-unstable-v1-client-protocol.h>
 #include <wlr-screencopy-unstable-v1-client-protocol.h>
 
+#define PROTO_VERSION(v1, v2) (v1 < v2 ? v1 : v2)
+
 struct wlr_frame {
 	uint32_t format;
 	uint32_t width, height;
@@ -50,6 +52,7 @@ struct wlr_source {
 	struct wlr_frame* frame;
 	bool waiting;
 	bool flip_rb;
+	bool flip_y;
 	bool show_cursor;
 	bool render;
 	pthread_mutex_t mutex;
@@ -75,14 +78,14 @@ static void add_interface(void* data, struct wl_registry* registry, uint32_t nam
 	struct wlr_source* this = data;
 	if(strcmp(interface, wl_output_interface.name) == 0) {
 		struct output_node* node = malloc(sizeof(struct output_node));
-		node->output = wl_registry_bind(registry, name, &wl_output_interface, version);
+		node->output = wl_registry_bind(registry, name, &wl_output_interface, PROTO_VERSION(version, 4));
 		wl_list_insert(&this->outputs, &node->link);
 	} else if(strcmp(interface, wl_shm_interface.name) == 0) {
-		this->shm = wl_registry_bind(registry, name, &wl_shm_interface, version);
+		this->shm = wl_registry_bind(registry, name, &wl_shm_interface, PROTO_VERSION(version, 1));
 	} else if(strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-		this->output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, version);
+		this->output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, PROTO_VERSION(version, 3));
 	} else if(strcmp(interface, zwlr_screencopy_manager_v1_interface.name) == 0) {
-		this->copy_manager = wl_registry_bind(registry, name, &zwlr_screencopy_manager_v1_interface, version);
+		this->copy_manager = wl_registry_bind(registry, name, &zwlr_screencopy_manager_v1_interface, PROTO_VERSION(version, 3));
 	}
 }
 
@@ -174,6 +177,7 @@ static void update(void* data, obs_data_t* settings) {
 			}
 		}
 		this->flip_rb = obs_data_get_bool(settings, "flip_rb");
+		this->flip_y = obs_data_get_bool(settings, "flip_y");
 		this->show_cursor = obs_data_get_bool(settings, "show_cursor");
 		this->x = obs_data_get_int(settings, "x");
 		this->y = obs_data_get_int(settings, "y");
@@ -224,7 +228,7 @@ static void ready(void* data, struct zwlr_screencopy_frame_v1* frame, uint32_t t
 		format = GS_RGBA;
 	}
 	gs_texture_t* texture = gs_texture_create(this->frame->width, this->frame->height, format, 1, (const uint8_t**) &buffer, 0);
-	obs_source_draw(texture, 0, 0, 0, 0, true);
+	obs_source_draw(texture, 0, 0, 0, 0, this->flip_y);
 	gs_texture_destroy(texture);
 	zwlr_screencopy_frame_v1_destroy(frame);
 	munmap(buffer, this->frame->size);
@@ -299,6 +303,7 @@ static obs_properties_t* get_properties(void* data) {
 	this->obs_outputs = obs_properties_add_list(props, "output", "Output", OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	populate_outputs(this);
 	obs_properties_add_bool(props, "flip_rb", "Flip red and blue");
+	obs_properties_add_bool(props, "flip_y", "Flip the y axis");
 	obs_properties_add_bool(props, "show_cursor", "Show mouse cursor");
 	obs_properties_add_int(props, "x", "X", 0, UINT16_MAX, 1);
 	obs_properties_add_int(props, "y", "Y", 0, UINT16_MAX, 1);

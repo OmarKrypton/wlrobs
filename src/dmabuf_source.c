@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019-2021 Scoopta
+ *  Copyright (C) 2019-2022 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 
 #include <xdg-output-unstable-v1-client-protocol.h>
 #include <wlr-export-dmabuf-unstable-v1-client-protocol.h>
+
+#define PROTO_VERSION(v1, v2) (v1 < v2 ? v1 : v2)
 
 struct wlr_frame {
 	uint32_t format;
@@ -75,12 +77,12 @@ static void add_interface(void* data, struct wl_registry* registry, uint32_t nam
 	struct wlr_source* this = data;
 	if(strcmp(interface, wl_output_interface.name) == 0) {
 		struct output_node* node = malloc(sizeof(struct output_node));
-		node->output = wl_registry_bind(registry, name, &wl_output_interface, version);
+		node->output = wl_registry_bind(registry, name, &wl_output_interface, PROTO_VERSION(version, 4));
 		wl_list_insert(&this->outputs, &node->link);
 	} else if(strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-		this->output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, version);
+		this->output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, PROTO_VERSION(version, 3));
 	} else if(strcmp(interface, zwlr_export_dmabuf_manager_v1_interface.name) == 0) {
-		this->dmabuf_manager = wl_registry_bind(registry, name, &zwlr_export_dmabuf_manager_v1_interface, version);
+		this->dmabuf_manager = wl_registry_bind(registry, name, &zwlr_export_dmabuf_manager_v1_interface, PROTO_VERSION(version, 1));
 	}
 }
 
