@@ -287,7 +287,9 @@ static void render(void* data, gs_effect_t* effect) {
 		struct zwlr_export_dmabuf_frame_v1* frame = zwlr_export_dmabuf_manager_v1_capture_output(this->dmabuf_manager, this->show_cursor, this->current_output->output);
 		zwlr_export_dmabuf_frame_v1_add_listener(frame, &dmabuf_listener, this);
 	}
-	wl_display_roundtrip(this->wl);
+	while(this->waiting) {
+		wl_display_roundtrip(this->wl);
+	}
 
 	if(this->current_frame != NULL) {
 		gs_effect_t* effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
