@@ -13,7 +13,7 @@ deps = [wayland, obs, dl]
 
 if get_option('use_scpy')
 	sources += ['src/scpy_source.c', 'proto/wlr-screencopy-unstable-v1-protocol.c']
-    deps += cc.find_library('rt')
+	deps += cc.find_library('rt')
 	add_project_arguments('-DENABLE_SCPY', language : 'c')
 endif
 
