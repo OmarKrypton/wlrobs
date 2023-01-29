@@ -11,7 +11,7 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 ## Building
 	hg clone https://hg.sr.ht/~scoopta/wlrobs
 	cd wlrobs
-	meson build
+	meson setup build
 	ninja -C build
 The screencopy backend can be disabled with the `-Duse_scpy=false` meson option, likewise dmabuf can be disabled with `-Duse_dmabuf=false`
 
