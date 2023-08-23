@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019-2022 Scoopta
+ *  Copyright (C) 2019-2023 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@ struct wlr_source {
 	struct wl_display* wl;
 	struct wl_list outputs;
 	struct output_node* current_output;
+	struct wl_registry* wl_registry;
+	struct wl_registry_listener* wl_listener;
 	struct zxdg_output_manager_v1* output_manager;
 	struct zwlr_export_dmabuf_manager_v1* dmabuf_manager;
 	struct wlr_frame* current_frame, *next_frame;
@@ -62,7 +64,10 @@ struct wlr_source {
 };
 
 struct output_node {
-	struct wl_output* output;
+	struct wl_output* wl_output;
+	struct zxdg_output_v1* xdg_output;
+	uint32_t wl_name;
+	size_t obs_idx;
 	char* name;
 	struct zxdg_output_v1_listener* listener;
 	struct wl_list link;
@@ -73,19 +78,6 @@ static const char* get_name(void* data) {
 	return "Wayland output(dmabuf)";
 }
 
-static void add_interface(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version) {
-	struct wlr_source* this = data;
-	if(strcmp(interface, wl_output_interface.name) == 0) {
-		struct output_node* node = malloc(sizeof(struct output_node));
-		node->output = wl_registry_bind(registry, name, &wl_output_interface, PROTO_VERSION(version, 4));
-		wl_list_insert(&this->outputs, &node->link);
-	} else if(strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-		this->output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, PROTO_VERSION(version, 3));
-	} else if(strcmp(interface, zwlr_export_dmabuf_manager_v1_interface.name) == 0) {
-		this->dmabuf_manager = wl_registry_bind(registry, name, &zwlr_export_dmabuf_manager_v1_interface, PROTO_VERSION(version, 1));
-	}
-}
-
 static void nop() {}
 
 static void get_xdg_name(void* data, struct zxdg_output_v1* output, const char* name) {
@@ -94,11 +86,64 @@ static void get_xdg_name(void* data, struct zxdg_output_v1* output, const char* 
 	node->name = strdup(name);
 }
 
+static void add_interface(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version) {
+	struct wlr_source* this = data;
+	if(strcmp(interface, wl_output_interface.name) == 0) {
+		struct output_node* node = malloc(sizeof(struct output_node));
+		node->wl_output = wl_registry_bind(registry, name, &wl_output_interface, PROTO_VERSION(version, 4));
+		node->wl_name = name;
+		wl_list_insert(&this->outputs, &node->link);
+
+		node->xdg_output = zxdg_output_manager_v1_get_xdg_output(this->output_manager, node->wl_output);
+		node->listener = malloc(sizeof(struct zxdg_output_v1_listener));
+		node->listener->description = nop;
+		node->listener->done = nop;
+		node->listener->logical_position = nop;
+		node->listener->logical_size = nop;
+		node->listener->name = get_xdg_name;
+		zxdg_output_v1_add_listener(node->xdg_output, node->listener, node);
+		wl_display_roundtrip(this->wl);
+	} else if(strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
+		this->output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, PROTO_VERSION(version, 3));
+	} else if(strcmp(interface, zwlr_export_dmabuf_manager_v1_interface.name) == 0) {
+		this->dmabuf_manager = wl_registry_bind(registry, name, &zwlr_export_dmabuf_manager_v1_interface, PROTO_VERSION(version, 1));
+	}
+}
+
+static void rm_interface(void* data, struct wl_registry* registry, uint32_t name) {
+	(void) registry;
+
+	struct wlr_source* this = data;
+	struct output_node* node, *safe_node;
+
+	wl_list_for_each_safe(node, safe_node, &this->outputs, link) {
+		if(node->wl_name == name) {
+			wl_list_remove(&node->link);
+
+			zxdg_output_v1_destroy(node->xdg_output);
+			obs_property_list_item_remove(this->obs_outputs, node->obs_idx);
+
+			free(node->name);
+			free(node->listener);
+			node->name = NULL;
+
+			if(this->current_output == node) {
+				this->current_output = NULL;
+			}
+
+			free(node);
+		}
+	}
+}
+
 static void destroy(void* data) {
 	struct wlr_source* this = data;
 	struct output_node* node, *safe_node;
 	wl_list_for_each_safe(node, safe_node, &this->outputs, link) {
 		wl_list_remove(&node->link);
+
+		zxdg_output_v1_destroy(node->xdg_output);
+
 		free(node->name);
 		free(node->listener);
 		node->name = NULL;
@@ -118,6 +163,11 @@ static void destroy(void* data) {
 		this->next_frame = NULL;
 	}
 
+	if(this->wl_registry != NULL) {
+		wl_registry_destroy(this->wl_registry);
+		free(this->wl_listener);
+	}
+
 	if(this->wl != NULL) {
 		wl_display_disconnect(this->wl);
 	}
@@ -131,7 +181,7 @@ static void destroy_complete(void* data) {
 static void populate_outputs(struct wlr_source* this) {
 	struct output_node* node;
 	wl_list_for_each(node, &this->outputs, link) {
-		obs_property_list_add_string(this->obs_outputs, node->name, node->name);
+		node->obs_idx = obs_property_list_add_string(this->obs_outputs, node->name, node->name);
 	}
 }
 
@@ -153,24 +203,11 @@ static void setup_display(struct wlr_source* this, const char* display) {
 	if(this->wl == NULL) {
 		return;
 	}
-	struct wl_registry* registry = wl_display_get_registry(this->wl);
-	struct wl_registry_listener listener = {
-		.global = add_interface,
-		.global_remove = nop
-	};
-	wl_registry_add_listener(registry, &listener, this);
-	wl_display_roundtrip(this->wl);
-	struct output_node* node;
-	wl_list_for_each(node, &this->outputs, link) {
-		struct zxdg_output_v1* xdg_output = zxdg_output_manager_v1_get_xdg_output(this->output_manager, node->output);
-		node->listener = malloc(sizeof(struct zxdg_output_v1_listener));
-		node->listener->description = nop;
-		node->listener->done = nop;
-		node->listener->logical_position = nop;
-		node->listener->logical_size = nop;
-		node->listener->name = get_xdg_name;
-		zxdg_output_v1_add_listener(xdg_output, node->listener, node);
-	}
+	this->wl_registry = wl_display_get_registry(this->wl);
+	this->wl_listener = malloc(sizeof(struct wl_registry_listener));
+	this->wl_listener->global = add_interface;
+	this->wl_listener->global_remove = rm_interface;
+	wl_registry_add_listener(this->wl_registry, this->wl_listener, this);
 	wl_display_roundtrip(this->wl);
 	this->render = true;
 }
@@ -199,7 +236,6 @@ static void* create(obs_data_t* settings, obs_source_t* source) {
 }
 
 static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t buffer_flags, uint32_t flags, uint32_t format, uint32_t mod_high, uint32_t mod_low, uint32_t obj_count) {
-	(void) frame;
 	(void) x;
 	(void) y;
 	(void) buffer_flags;
@@ -210,6 +246,7 @@ static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 	this->next_frame->width = width;
 	this->next_frame->height = height;
 	this->next_frame->obj_count = obj_count;
+	this->next_frame->frame = frame;
 	for (int i = 0; i < 4; ++i) {
 		this->next_frame->modifiers[i] = (((uint64_t) mod_high) << 32) | mod_low;
 	}
@@ -262,8 +299,20 @@ static void cancel(void* data, struct zwlr_export_dmabuf_frame_v1* frame, enum z
 	(void) reason;
 	struct wlr_source* this = data;
 	zwlr_export_dmabuf_frame_v1_destroy(frame);
-	for(uint32_t count = 0; count < this->next_frame->obj_count; ++count) {
-		close(this->next_frame->fds[count]);
+
+	struct wlr_frame* wlr_frame;
+
+	if(this->current_frame->frame == frame) {
+		wlr_frame = this->current_frame;
+	} else if(this->next_frame != NULL && this->next_frame->frame == frame) {
+		wlr_frame = this->next_frame;
+	} else {
+		this->waiting = false;
+		return;
+	}
+
+	for(uint32_t count = 0; count < wlr_frame->obj_count; ++count) {
+		close(wlr_frame->fds[count]);
 	}
 	this->waiting = false;
 }
@@ -280,14 +329,15 @@ static void render(void* data, gs_effect_t* effect) {
 	struct wlr_source* this = data;
 
 	if(!this->render || this->current_output == NULL) {
+		this->waiting = false;
 		return;
 	}
 	if(!this->waiting) {
 		this->waiting = true;
-		struct zwlr_export_dmabuf_frame_v1* frame = zwlr_export_dmabuf_manager_v1_capture_output(this->dmabuf_manager, this->show_cursor, this->current_output->output);
+		struct zwlr_export_dmabuf_frame_v1* frame = zwlr_export_dmabuf_manager_v1_capture_output(this->dmabuf_manager, this->show_cursor, this->current_output->wl_output);
 		zwlr_export_dmabuf_frame_v1_add_listener(frame, &dmabuf_listener, this);
 	}
-	while(this->waiting) {
+	while(this->waiting && this->current_output != NULL) {
 		wl_display_roundtrip(this->wl);
 	}
 
