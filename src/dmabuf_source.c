@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019-2024 Scoopta
+ *  Copyright (C) 2019-2023 Scoopta
  *  This file is part of wlrobs
  *  wlrobs is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include <dmabuf_source.h>
 
-#include <time.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -236,18 +235,11 @@ static void* create(obs_data_t* settings, obs_source_t* source) {
 	return this;
 }
 
-static struct timespec frame_timer_start;
-
 static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t width, uint32_t height, uint32_t x, uint32_t y, uint32_t buffer_flags, uint32_t flags, uint32_t format, uint32_t mod_high, uint32_t mod_low, uint32_t obj_count) {
 	(void) x;
 	(void) y;
 	(void) buffer_flags;
 	(void) flags;
-	struct timespec end;
-	clock_gettime(CLOCK_MONOTONIC, &end);
-
-	printf("START _frame %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
-
 	struct wlr_source* this = data;
 	this->next_frame = calloc(1, sizeof(struct wlr_frame));
 	this->next_frame->format = format;
@@ -258,10 +250,6 @@ static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 	for (int i = 0; i < 4; ++i) {
 		this->next_frame->modifiers[i] = (((uint64_t) mod_high) << 32) | mod_low;
 	}
-
-	clock_gettime(CLOCK_MONOTONIC, &end);
-
-	printf("END _frame %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
 }
 
 static void object(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t index, int32_t fd, uint32_t size, uint32_t offset, uint32_t stride, uint32_t plane_index) {
@@ -272,10 +260,6 @@ static void object(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 	this->next_frame->strides[index] = stride;
 	this->next_frame->offsets[index] = offset;
 	this->next_frame->plane_indices[index] = plane_index;
-
-	struct timespec end;
-	clock_gettime(CLOCK_MONOTONIC, &end);
-	printf("object %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
 }
 
 static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
@@ -309,10 +293,6 @@ static void ready(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_
 	this->current_frame = this->next_frame;
 	this->next_frame = NULL;
 	this->waiting = false;
-
-	struct timespec end;
-	clock_gettime(CLOCK_MONOTONIC, &end);
-	printf("ready %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
 }
 
 static void cancel(void* data, struct zwlr_export_dmabuf_frame_v1* frame, enum zwlr_export_dmabuf_frame_v1_cancel_reason reason) {
@@ -335,8 +315,6 @@ static void cancel(void* data, struct zwlr_export_dmabuf_frame_v1* frame, enum z
 		close(wlr_frame->fds[count]);
 	}
 	this->waiting = false;
-
-	printf("cancelled!!!!!!\n");
 }
 
 static struct zwlr_export_dmabuf_frame_v1_listener dmabuf_listener = {
@@ -354,18 +332,11 @@ static void render(void* data, gs_effect_t* effect) {
 		this->waiting = false;
 		return;
 	}
-
-	clock_gettime(CLOCK_MONOTONIC, &frame_timer_start);
 	if(!this->waiting) {
 		this->waiting = true;
 		struct zwlr_export_dmabuf_frame_v1* frame = zwlr_export_dmabuf_manager_v1_capture_output(this->dmabuf_manager, this->show_cursor, this->current_output->wl_output);
 		zwlr_export_dmabuf_frame_v1_add_listener(frame, &dmabuf_listener, this);
 	}
-
-	struct timespec end;
-	clock_gettime(CLOCK_MONOTONIC, &end);
-
-	printf("wl_rt %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
 	while(this->waiting && this->current_output != NULL) {
 		wl_display_roundtrip(this->wl);
 	}
