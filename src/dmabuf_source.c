@@ -243,6 +243,11 @@ static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 	(void) y;
 	(void) buffer_flags;
 	(void) flags;
+	struct timespec end;
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	printf("START _frame %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
+
 	struct wlr_source* this = data;
 	this->next_frame = calloc(1, sizeof(struct wlr_frame));
 	this->next_frame->format = format;
@@ -254,10 +259,9 @@ static void _frame(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32
 		this->next_frame->modifiers[i] = (((uint64_t) mod_high) << 32) | mod_low;
 	}
 
-	struct timespec end;
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
-	printf("_frame %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
+	printf("END _frame %lu\n", (end.tv_nsec - frame_timer_start.tv_nsec) / 100000);
 }
 
 static void object(void* data, struct zwlr_export_dmabuf_frame_v1* frame, uint32_t index, int32_t fd, uint32_t size, uint32_t offset, uint32_t stride, uint32_t plane_index) {
