@@ -13,7 +13,7 @@ wlrobs is an obs-studio plugin that allows you to screen capture on wlroots base
 	pkg-config
 	meson
 ## Building
-	hg clone https://hg.sr.ht/~scoopta/wlrobs
+	git clone https://github.com/OmarKrypton/wlrobs.git
 	cd wlrobs
 	meson setup build
 	ninja -C build
