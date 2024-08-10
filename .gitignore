@@ -1,6 +1,4 @@
-.cproject
-.project
-.settings
-.hgrepos
-build
-Debug
+/.settings
+/.hgrepos
+/build
+/Debug
